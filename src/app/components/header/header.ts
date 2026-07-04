@@ -22,7 +22,25 @@ export class HeaderComponent implements AfterViewInit {
     );
   }
 
-  lidarComLogin(response: any) {
-    console.log('JWT recebido do Google:', response.credential);
+  async lidarComLogin(response: any) {
+    const token = response.credential;
+    console.log('JWT recebido do Google:', token);
+
+    try {
+      const res = await fetch('http://localhost:8787/api/auth/google', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token })
+      });
+
+      const data = await res.json();
+      console.log('Resposta da nossa API:', data);
+      
+      if (data.success) {
+        alert(`Bem-vindo, ${data.user.name}!`);
+      }
+    } catch (err) {
+      console.error('Erro ao conectar na API:', err);
+    }
   }
 }

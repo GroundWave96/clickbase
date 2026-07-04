@@ -1,4 +1,6 @@
 import { Component, AfterViewInit } from '@angular/core';
+import { Router } from '@angular/router';
+import { inject } from '@angular/core';
 
 declare var google: any;
 
@@ -9,6 +11,7 @@ declare var google: any;
   styleUrl: './header.css'
 })
 export class HeaderComponent implements AfterViewInit {
+  private router = inject(Router);
 
   ngAfterViewInit(): void {
     google.accounts.id.initialize({
@@ -24,8 +27,7 @@ export class HeaderComponent implements AfterViewInit {
 
   async lidarComLogin(response: any) {
     const token = response.credential;
-    console.log('JWT recebido do Google:', token);
-
+    
     try {
       const res = await fetch('http://localhost:8787/api/auth/google', {
         method: 'POST',
@@ -34,13 +36,14 @@ export class HeaderComponent implements AfterViewInit {
       });
 
       const data = await res.json();
-      console.log('Resposta da nossa API:', data);
       
       if (data.success) {
-        alert(`Bem-vindo, ${data.user.name}!`);
+        localStorage.setItem('user_name', data.user.name);
+        
+        this.router.navigate(['/dashboard']);
       }
     } catch (err) {
-      console.error('Erro ao conectar na API:', err);
+      console.error('Erro:', err);
     }
   }
 }

@@ -54,4 +54,18 @@ app.post('/api/auth/google', async (c) => {
   }
 })
 
+app.get('/api/user/:email', async (c) => {
+  const email = c.req.param('email')
+  
+  const user = await c.env.DB.prepare(
+    "SELECT * FROM users WHERE email = ?"
+  ).bind(email).first()
+
+  if (!user) {
+    return c.json({ error: 'Usuário não encontrado' }, 404)
+  }
+
+  return c.json({ user })
+})
+
 export default app

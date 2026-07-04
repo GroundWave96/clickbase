@@ -27,7 +27,7 @@ export class HeaderComponent implements AfterViewInit {
 
   async lidarComLogin(response: any) {
     const token = response.credential;
-    
+
     try {
       const res = await fetch('http://localhost:8787/api/auth/google', {
         method: 'POST',
@@ -36,10 +36,10 @@ export class HeaderComponent implements AfterViewInit {
       });
 
       const data = await res.json();
-      
+
       if (data.success) {
         localStorage.setItem('user_name', data.user.name);
-        
+        localStorage.setItem('user_email', data.user.email);
         this.router.navigate(['/dashboard']);
       }
     } catch (err) {

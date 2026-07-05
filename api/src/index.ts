@@ -25,7 +25,7 @@ app.post('/api/auth/google', async (c) => {
   try {
     const body = await c.req.json()
     const token = body.token
-    
+
     if (!token) return c.json({ success: false, error: 'Token não fornecido' }, 400)
 
     const base64Url = token.split('.')[1]
@@ -33,7 +33,7 @@ app.post('/api/auth/google', async (c) => {
     const jsonPayload = decodeURIComponent(atob(base64).split('').map(char => {
       return '%' + ('00' + char.charCodeAt(0).toString(16)).slice(-2)
     }).join(''))
-    
+
     const payload = JSON.parse(jsonPayload)
 
     await c.env.DB.prepare(`
@@ -63,9 +63,9 @@ app.get('/api/user/:email', async (c) => {
   try {
     const email = c.req.param('email')
     const user = await c.env.DB.prepare("SELECT * FROM users WHERE email = ?").bind(email).first()
-    
+
     if (!user) return c.json({ success: false, error: 'Usuário não encontrado' }, 404)
-    
+
     return c.json({ success: true, data: { user } })
   } catch (error) {
     console.error("Erro ao buscar usuário:", error)
@@ -83,13 +83,13 @@ app.post('/api/pages', async (c) => {
     const { results: userPages } = await c.env.DB.prepare(
       "SELECT count(*) as total FROM pages WHERE user_email = ?"
     ).bind(user_email).all()
-    
+
     if ((userPages[0] as any).total >= 10) {
       return c.json({ success: false, error: 'Limite de 10 páginas atingido.' }, 400)
     }
 
     const existingPage = await c.env.DB.prepare("SELECT uuid FROM pages WHERE slug = ?").bind(slug).first()
-    
+
     if (existingPage) {
       return c.json({ success: false, error: 'Esta URL já está em uso. Escolha outra.' }, 400)
     }
@@ -113,7 +113,7 @@ app.get('/api/pages/:email', async (c) => {
     const { results } = await c.env.DB.prepare(`
       SELECT * FROM pages WHERE user_email = ? ORDER BY created_at DESC
     `).bind(email).all()
-    
+
     return c.json({ success: true, data: { pages: results } })
   } catch (error) {
     console.error("Erro ao buscar páginas:", error)
@@ -125,7 +125,7 @@ app.get('/api/pages/check-slug/:slug', async (c) => {
   try {
     const slug = c.req.param('slug')
     const existingPage = await c.env.DB.prepare("SELECT uuid FROM pages WHERE slug = ?").bind(slug).first()
-    
+
     return c.json({ success: true, data: { available: !existingPage } })
   } catch (error) {
     return c.json({ success: false, error: 'Erro ao verificar URL' }, 500)
@@ -136,7 +136,7 @@ app.delete('/api/pages/:id', async (c) => {
   try {
     const id = c.req.param('id')
     await c.env.DB.prepare("DELETE FROM pages WHERE uuid = ?").bind(id).run()
-    
+
     return c.json({ success: true, data: { message: 'Página deletada com sucesso' } })
   } catch (error) {
     console.error("Erro ao deletar página:", error)
@@ -151,7 +151,7 @@ app.post('/api/folders', async (c) => {
   try {
     const { page_uuid, title } = await c.req.json()
     const uuid = crypto.randomUUID()
-    
+
     await c.env.DB.prepare(`
       INSERT INTO folders (uuid, page_uuid, title) VALUES (?, ?, ?)
     `).bind(uuid, page_uuid, title).run()
@@ -169,7 +169,7 @@ app.get('/api/folders/:pageId', async (c) => {
     const { results } = await c.env.DB.prepare(`
       SELECT * FROM folders WHERE page_uuid = ? ORDER BY created_at ASC
     `).bind(pageId).all()
-    
+
     return c.json({ success: true, data: { folders: results } })
   } catch (error) {
     console.error("Erro ao buscar pastas:", error)
@@ -181,7 +181,7 @@ app.delete('/api/folders/:id', async (c) => {
   try {
     const id = c.req.param('id')
     await c.env.DB.prepare("DELETE FROM folders WHERE uuid = ?").bind(id).run()
-    
+
     return c.json({ success: true, data: { message: 'Pasta deletada com sucesso' } })
   } catch (error) {
     console.error("Erro ao deletar pasta:", error)
@@ -197,7 +197,7 @@ app.post('/api/links', async (c) => {
     const { page_uuid, folder_uuid, title, url } = await c.req.json()
     const uuid = crypto.randomUUID()
     const folderId = folder_uuid ? folder_uuid : null
-    
+
     await c.env.DB.prepare(`
       INSERT INTO links (uuid, page_uuid, folder_uuid, title, url) VALUES (?, ?, ?, ?, ?)
     `).bind(uuid, page_uuid, folderId, title, url).run()
@@ -215,7 +215,7 @@ app.get('/api/links/:pageId', async (c) => {
     const { results } = await c.env.DB.prepare(`
       SELECT * FROM links WHERE page_uuid = ? ORDER BY order_index ASC, created_at ASC
     `).bind(pageId).all()
-    
+
     return c.json({ success: true, data: { links: results } })
   } catch (error) {
     console.error("Erro ao buscar links:", error)
@@ -227,11 +227,27 @@ app.delete('/api/links/:id', async (c) => {
   try {
     const id = c.req.param('id')
     await c.env.DB.prepare("DELETE FROM links WHERE uuid = ?").bind(id).run()
-    
+
     return c.json({ success: true, data: { message: 'Link deletado com sucesso' } })
   } catch (error) {
     console.error("Erro ao deletar link:", error)
     return c.json({ success: false, error: 'Falha ao deletar o link' }, 500)
+  }
+})
+
+app.put('/api/links/:id/move', async (c) => {
+  try {
+    const id = c.req.param('id')
+    const { folder_uuid } = await c.req.json()
+
+    await c.env.DB.prepare("UPDATE links SET folder_uuid = ? WHERE uuid = ?")
+      .bind(folder_uuid, id)
+      .run()
+
+    return c.json({ success: true, data: { message: 'Link transferido com sucesso' } })
+  } catch (error) {
+    console.error("Erro ao mover link:", error)
+    return c.json({ success: false, error: 'Falha ao mover link' }, 500)
   }
 })
 
@@ -241,15 +257,14 @@ app.delete('/api/links/:id', async (c) => {
 app.put('/api/reorder-all', async (c) => {
   try {
     const { items } = await c.req.json()
-    
-    // Aproveitando o Batch do D1 para rodar todas as atualizações juntas
+
     const statements = items.map((item: any) => {
       const table = item.type === 'folder' ? 'folders' : 'links'
       return c.env.DB.prepare(`UPDATE ${table} SET order_index = ? WHERE uuid = ?`).bind(item.order_index, item.uuid)
     })
 
     await c.env.DB.batch(statements)
-    
+
     return c.json({ success: true, data: { message: 'Estrutura reordenada com sucesso' } })
   } catch (error) {
     console.error("Erro ao reordenar:", error)
@@ -264,10 +279,9 @@ app.get('/api/public/:slug', async (c) => {
   try {
     const slug = c.req.param('slug')
     const page = await c.env.DB.prepare("SELECT * FROM pages WHERE slug = ?").bind(slug).first()
-    
+
     if (!page) return c.json({ success: false, error: 'Página não encontrada' }, 404)
 
-    // Agrupando chamadas no D1 Batch para entregar a página pública instantaneamente
     const [foldersResult, linksResult] = await c.env.DB.batch([
       c.env.DB.prepare("SELECT * FROM folders WHERE page_uuid = ? ORDER BY order_index ASC").bind(page.uuid),
       c.env.DB.prepare("SELECT * FROM links WHERE page_uuid = ? ORDER BY order_index ASC").bind(page.uuid)
@@ -293,21 +307,45 @@ app.get('/api/public/:slug', async (c) => {
 app.get('/api/go/:linkId', async (c) => {
   try {
     const linkId = c.req.param('linkId')
-    
+
     const link = await c.env.DB.prepare("SELECT url, page_uuid FROM links WHERE uuid = ?").bind(linkId).first()
-    
+
     if (!link) return c.json({ success: false, error: 'Link não encontrado' }, 404)
 
-    // Header injetado nativamente pela infra da Cloudflare
     const country = c.req.header('cf-ipcountry') || 'UNKNOWN'
-    
-    // (A ser implementado no DB)
-    // INSERT INTO clicks (link_uuid, page_uuid, country) VALUES (linkId, link.page_uuid, country)
-    
+
     return c.redirect(link.url as string, 302)
   } catch (error) {
     console.error("Erro no redirecionamento:", error)
     return c.json({ success: false, error: 'Falha ao redirecionar' }, 500)
+  }
+})
+
+// ==========================================
+// UTILIDADES
+// ==========================================
+app.post('/api/extract-title', async (c) => {
+  try {
+    const { url } = await c.req.json()
+    if (!url) return c.json({ success: false, error: 'URL não fornecida' }, 400)
+
+    const validUrl = url.startsWith('http') ? url : `https://${url}`
+
+    const response = await fetch(validUrl, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
+    })
+
+    if (!response.ok) throw new Error('Falha ao acessar o site')
+
+    const html = await response.text()
+    const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i)
+
+    const title = titleMatch ? titleMatch[1].trim() : ''
+
+    return c.json({ success: true, data: { title } })
+  } catch (error) {
+    console.error("Erro ao extrair título:", error)
+    return c.json({ success: false, error: 'Não foi possível extrair o título' }, 500)
   }
 })
 

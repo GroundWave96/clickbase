@@ -2,7 +2,8 @@ import { Component, OnInit, ChangeDetectorRef, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { DragDropModule } from '@angular/cdk/drag-drop';
-import { CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
+import { CdkDragDrop, moveItemInArray, CdkDrag } from '@angular/cdk/drag-drop';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-editor',
@@ -17,6 +18,8 @@ export class EditorComponent implements OnInit {
   folders: any[] = [];
   links: any[] = [];
   listaEstrutura: any[] = [];
+  buscandoTitulo: boolean = false;
+  typingTimerTitulo: any;
 
   private route = inject(ActivatedRoute);
   private router = inject(Router);
@@ -36,7 +39,7 @@ export class EditorComponent implements OnInit {
   async carregarPagina(uuid: string) {
     try {
       const email = localStorage.getItem('user_email');
-      const res = await fetch(`http://localhost:8787/api/pages/${email}`);
+      const res = await fetch(`${environment.apiUrl}/api/pages/${email}`);
       const data = await res.json();
 
       if (data.success) {
@@ -55,11 +58,12 @@ export class EditorComponent implements OnInit {
 
   async carregarPastas(pageId: string) {
     try {
-      const res = await fetch(`http://localhost:8787/api/folders/${pageId}`);
+      const res = await fetch(`${environment.apiUrl}/api/folders/${pageId}`);
       const data = await res.json();
+      
       if (data.success) {
-        this.folders = data.data.folders;
-        this.cdr.detectChanges(); // Atualiza a tela
+        this.folders = data.data.folders; 
+        this.atualizarEstrutura();
       }
     } catch (error) {
       console.error('Erro ao carregar pastas:', error);
@@ -73,7 +77,7 @@ export class EditorComponent implements OnInit {
     }
 
     try {
-      const res = await fetch('http://localhost:8787/api/folders', {
+      const res = await fetch(`${environment.apiUrl}/api/folders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ page_uuid: this.pageId, title: titulo })
@@ -81,7 +85,7 @@ export class EditorComponent implements OnInit {
 
       const data = await res.json();
       if (data.success) {
-        await this.carregarPastas(this.pageId!); // Puxa a lista atualizada
+        await this.carregarPastas(this.pageId!);
       } else {
         alert('Erro ao criar a pasta.');
       }
@@ -95,15 +99,14 @@ export class EditorComponent implements OnInit {
     if (!confirmacao) return;
 
     try {
-      const res = await fetch(`http://localhost:8787/api/folders/${id}`, {
+      const res = await fetch(`${environment.apiUrl}/api/folders/${id}`, {
         method: 'DELETE'
       });
-
       const data = await res.json();
+
       if (data.success) {
-        // Remove a pasta da lista visualmente sem precisar chamar a API de novo
         this.folders = this.folders.filter(f => f.uuid !== id);
-        this.cdr.detectChanges();
+        this.atualizarEstrutura();
       }
     } catch (error) {
       console.error('Erro ao deletar pasta:', error);
@@ -119,7 +122,7 @@ export class EditorComponent implements OnInit {
     if (!confirmacao) return;
 
     try {
-      const res = await fetch(`http://localhost:8787/api/pages/${this.pageId}`, {
+      const res = await fetch(`${environment.apiUrl}/api/pages/${this.pageId}`, {
         method: 'DELETE'
       });
       const data = await res.json();
@@ -138,11 +141,12 @@ export class EditorComponent implements OnInit {
 
   async carregarLinks(pageId: string) {
     try {
-      const res = await fetch(`http://localhost:8787/api/links/${pageId}`);
+      const res = await fetch(`${environment.apiUrl}/api/links/${pageId}`);
       const data = await res.json();
+      
       if (data.success) {
         this.links = data.data.links;
-        this.cdr.detectChanges();
+        this.atualizarEstrutura();
       }
     } catch (error) {
       console.error('Erro ao carregar links:', error);
@@ -156,12 +160,12 @@ export class EditorComponent implements OnInit {
     }
 
     try {
-      const res = await fetch('http://localhost:8787/api/links', {
+      const res = await fetch(`${environment.apiUrl}/api/links`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           page_uuid: this.pageId,
-          folder_uuid: folderUuid || null, // Se for vazio, fica solto
+          folder_uuid: folderUuid || null,
           title: titulo,
           url: url
         })
@@ -181,19 +185,16 @@ export class EditorComponent implements OnInit {
     if (!confirmacao) return;
 
     try {
-      const res = await fetch(`http://localhost:8787/api/links/${id}`, {
+      const res = await fetch(`${environment.apiUrl}/api/links/${id}`, {
         method: 'DELETE'
       });
       const data = await res.json();
 
       if (data.success) {
-        // 1. Remove o link da nossa lista "bruta" (isso faz ele sumir de dentro das pastas)
         this.links = this.links.filter(l => l.uuid !== id);
 
-        // 2. Recalcula a estrutura unificada (isso faz ele sumir dos links soltos na raiz)
         this.atualizarEstrutura();
 
-        // 3. Força a tela a atualizar imediatamente
         this.cdr.detectChanges();
       } else {
         alert('Erro ao excluir o link.');
@@ -203,12 +204,12 @@ export class EditorComponent implements OnInit {
     }
   }
 
-  // Função auxiliar para o HTML: Pega os links que pertencem a uma pasta específica
   getLinksDaPasta(folderUuid: string) {
-    return this.links.filter(link => link.folder_uuid === folderUuid);
+    return this.links
+      .filter(link => link.folder_uuid === folderUuid)
+      .sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
   }
 
-  // Função auxiliar para o HTML: Pega os links soltos (sem pasta)
   getLinksSoltos() {
     return this.links.filter(link => !link.folder_uuid);
   }
@@ -218,7 +219,6 @@ export class EditorComponent implements OnInit {
   }
 
   dropPasta(event: CdkDragDrop<any[]>) {
-    // 1. Move o item visualmente na tela
     moveItemInArray(this.folders, event.previousIndex, event.currentIndex);
 
     this.salvarNovaOrdem();
@@ -226,18 +226,16 @@ export class EditorComponent implements OnInit {
 
   async salvarNovaOrdem() {
     try {
-      // 1. Prepara o array injetando o type: 'folder' para a nova API entender
       const novaOrdem = this.folders.map((folder, index) => ({
         uuid: folder.uuid,
-        type: 'folder', // <-- O back-end agora exige saber o que estamos ordenando
+        type: 'folder',
         order_index: index + 1
       }));
 
-      // 2. Chama a rota unificada
-      const res = await fetch('http://localhost:8787/api/reorder-all', {
+      const res = await fetch(`${environment.apiUrl}/api/reorder-all`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items: novaOrdem }) // <-- O back-end espera 'items'
+        body: JSON.stringify({ items: novaOrdem })
       });
 
       const data = await res.json();
@@ -251,11 +249,9 @@ export class EditorComponent implements OnInit {
   }
 
   get estruturaUnificada() {
-    // Combinamos pastas e links em uma lista só
     const pastas = this.folders.map(f => ({ ...f, type: 'folder', order: f.order_index || 0 }));
     const linksSoltos = this.links.filter(l => !l.folder_uuid).map(l => ({ ...l, type: 'link', order: l.order_index || 0 }));
 
-    // Juntamos tudo e ordenamos pela propriedade 'order'
     return [...pastas, ...linksSoltos].sort((a, b) => a.order - b.order);
   }
 
@@ -264,14 +260,6 @@ export class EditorComponent implements OnInit {
     const soltos = this.links.filter(l => !l.folder_uuid).map(l => ({ ...l, type: 'link' }));
     this.listaEstrutura = [...pastas, ...soltos].sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
     this.cdr.detectChanges();
-  }
-
-  // 4. O Drop agora trabalha na listaEstrutura
-  async dropEstrutura(event: CdkDragDrop<any[]>) {
-    moveItemInArray(this.listaEstrutura, event.previousIndex, event.currentIndex);
-
-    // O "await" aqui é crucial para garantir que a API receba os dados
-    await this.salvarNovaOrdemUnificada();
   }
 
   async salvarNovaOrdemUnificada() {
@@ -283,7 +271,7 @@ export class EditorComponent implements OnInit {
 
 
     try {
-      const response = await fetch('http://localhost:8787/api/reorder-all', {
+      const response = await fetch(`${environment.apiUrl}/api/reorder-all`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ items: novaOrdem })
@@ -299,41 +287,154 @@ export class EditorComponent implements OnInit {
     }
   }
 
-  async dropLinkInterno(event: CdkDragDrop<any[]>, folderUuid: string) {
-    // Pega apenas os links que pertencem a esta pasta específica
-    const linksDaPasta = this.getLinksDaPasta(folderUuid);
-
-    // Move o link visualmente no array filtrado
-    moveItemInArray(linksDaPasta, event.previousIndex, event.currentIndex);
-
-    // Atualiza a propriedade order_index de cada link baseada na nova posição
-    linksDaPasta.forEach((link, index) => {
-      link.order_index = index + 1;
-    });
-
-    // Envia a nova ordem para o banco de dados
-    await this.salvarNovaOrdemLinks(linksDaPasta);
-  }
-
-  // 2. A função que envia a requisição para a API (que o TypeScript não estava achando)
   async salvarNovaOrdemLinks(linksAtualizados: any[]) {
-    // Prepara o payload aproveitando a nossa rota reorder-all
     const novaOrdem = linksAtualizados.map(link => ({
       uuid: link.uuid,
-      type: 'link', // Avisa a API que estamos atualizando a tabela de links
+      type: 'link',
       order_index: link.order_index
     }));
 
     try {
-      await fetch('http://localhost:8787/api/reorder-all', {
+      await fetch(`${environment.apiUrl}/api/reorder-all`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ items: novaOrdem })
       });
-      // Após salvar, você pode opcionalmente recarregar a lista geral para manter o state perfeitamente sincronizado
       await this.carregarLinks(this.pageId!);
     } catch (error) {
       console.error('Erro ao salvar ordem dos links internos:', error);
+    }
+  }
+
+  onUrlInput(url: string, tituloInput: HTMLInputElement) {
+    clearTimeout(this.typingTimerTitulo);
+
+    if (!url) return;
+
+    this.typingTimerTitulo = setTimeout(async () => {
+      this.buscandoTitulo = true;
+      this.cdr.detectChanges();
+
+      try {
+        const res = await fetch(`${environment.apiUrl}/api/extract-title`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url })
+        });
+        const data = await res.json();
+
+        if (data.success && data.data.title) {
+          tituloInput.value = data.data.title;
+        }
+      } catch (error) {
+        console.error('Erro ao buscar título automaticamente:', error);
+      } finally {
+        this.buscandoTitulo = false;
+        this.cdr.detectChanges();
+      }
+    }, 800);
+  }
+
+  // ==========================================
+  // LÓGICA AVANÇADA DE DRAG AND DROP
+  // ==========================================
+
+  get listasConectadas() {
+    return ['lista-raiz', ...this.folders.map(f => `lista-pasta-${f.uuid}`)];
+  }
+
+  soAceitaLinks = (drag: CdkDrag, drop: any) => {
+    return drag.data?.type === 'link';
+  }
+
+  async dropEstrutura(event: CdkDragDrop<any[]>) {
+    if (event.previousContainer === event.container) {
+      moveItemInArray(this.listaEstrutura, event.previousIndex, event.currentIndex);
+      this.listaEstrutura.forEach((item, index) => item.order_index = index + 1);
+      this.cdr.detectChanges();
+      await this.salvarNovaOrdemGeral(this.listaEstrutura);
+    } else {
+      const draggedLink = event.item.data;
+      if (draggedLink.type === 'folder') return;
+
+      const linkBruto = this.links.find(l => l.uuid === draggedLink.uuid);
+      if (linkBruto) linkBruto.folder_uuid = null;
+
+      const novaRaiz = [...this.folders.map(f => ({ ...f, type: 'folder' })), ...this.links.filter(l => !l.folder_uuid).map(l => ({ ...l, type: 'link' }))]
+        .sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
+
+      const idx = novaRaiz.findIndex(i => i.uuid === draggedLink.uuid);
+      novaRaiz.splice(idx, 1);
+      novaRaiz.splice(event.currentIndex, 0, draggedLink);
+
+      this.sincronizarIndicesLocais(novaRaiz);
+      this.atualizarEstrutura();
+
+      await this.salvarTransferenciaCross(draggedLink.uuid, null, novaRaiz);
+    }
+  }
+
+  async dropLinkInterno(event: CdkDragDrop<any[]>, folderUuid: string) {
+    if (event.previousContainer === event.container) {
+      const linksDaPasta = this.getLinksDaPasta(folderUuid);
+      moveItemInArray(linksDaPasta, event.previousIndex, event.currentIndex);
+      this.sincronizarIndicesLocais(linksDaPasta);
+      this.atualizarEstrutura();
+      await this.salvarNovaOrdemGeral(linksDaPasta);
+    } else {
+      const draggedLink = event.item.data;
+
+      const linkBruto = this.links.find(l => l.uuid === draggedLink.uuid);
+      if (linkBruto) linkBruto.folder_uuid = folderUuid;
+
+      const linksDaPasta = this.getLinksDaPasta(folderUuid);
+      const idx = linksDaPasta.findIndex(l => l.uuid === draggedLink.uuid);
+      linksDaPasta.splice(idx, 1);
+      linksDaPasta.splice(event.currentIndex, 0, draggedLink);
+
+      this.sincronizarIndicesLocais(linksDaPasta);
+      this.atualizarEstrutura();
+
+      await this.salvarTransferenciaCross(draggedLink.uuid, folderUuid, linksDaPasta);
+    }
+  }
+
+  sincronizarIndicesLocais(listaVisual: any[]) {
+    listaVisual.forEach((item, index) => {
+      item.order_index = index + 1;
+      if (item.type === 'link') {
+        const alvo = this.links.find(x => x.uuid === item.uuid);
+        if (alvo) alvo.order_index = item.order_index;
+      } else {
+        const alvo = this.folders.find(x => x.uuid === item.uuid);
+        if (alvo) alvo.order_index = item.order_index;
+      }
+    });
+  }
+
+  async salvarNovaOrdemGeral(lista: any[]) {
+    const novaOrdem = lista.map((item) => ({
+      uuid: item.uuid,
+      type: item.type || 'link',
+      order_index: item.order_index
+    }));
+    await fetch(`${environment.apiUrl}/api/reorder-all`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items: novaOrdem })
+    });
+  }
+
+  async salvarTransferenciaCross(linkUuid: string, newFolderUuid: string | null, listaAlvo: any[]) {
+    try {
+      await fetch(`${environment.apiUrl}/api/links/${linkUuid}/move`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ folder_uuid: newFolderUuid })
+      });
+      await this.salvarNovaOrdemGeral(listaAlvo);
+    } catch (e) {
+      console.error('Erro na transferência:', e);
     }
   }
 

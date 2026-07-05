@@ -1,5 +1,6 @@
 import { Component, OnInit, ChangeDetectorRef, inject } from '@angular/core';
 import { Router } from '@angular/router';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-dashboard',
@@ -18,7 +19,7 @@ export class DashboardComponent implements OnInit {
 
     if (email) {
       try {
-        const resUser = await fetch(`http://localhost:8787/api/user/${email}`);
+        const resUser = await fetch(`${environment.apiUrl}/api/user/${email}`);
         const dataUser = await resUser.json();
         this.user = dataUser.data.user;
 
@@ -57,7 +58,7 @@ export class DashboardComponent implements OnInit {
 
     this.typingTimer = setTimeout(async () => {
       try {
-        const res = await fetch(`http://localhost:8787/api/pages/check-slug/${slug}`);
+        const res = await fetch(`${environment.apiUrl}/api/pages/check-slug/${slug}`);
 
         if (!res.ok) throw new Error('Erro na resposta da API');
 
@@ -75,7 +76,7 @@ export class DashboardComponent implements OnInit {
 
   async carregarPaginas(email: string) {
     try {
-      const res = await fetch(`http://localhost:8787/api/pages/${email}`);
+      const res = await fetch(`${environment.apiUrl}/api/pages/${email}`);
       const data = await res.json();
       if (data.success) {
         this.pages = data.data.pages;
@@ -90,22 +91,25 @@ export class DashboardComponent implements OnInit {
       alert('Preencha o título e a URL personalizada!');
       return;
     }
-
+    
     const slugFormatado = slug.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-');
     const email = localStorage.getItem('user_email');
-
+          
     try {
-      const res = await fetch('http://localhost:8787/api/pages', {
+      const res = await fetch(`${environment.apiUrl}/api/pages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_email: email, title: titulo, slug: slugFormatado })
       });
-
+              
       const data = await res.json();
-
+              
       if (data.success) {
         await this.carregarPaginas(email!);
+        
+        this.slugStatus = 'idle';
         this.cdr.detectChanges();
+        
       } else {
         alert(`Não foi possível criar: ${data.error}`);
       }
@@ -116,5 +120,12 @@ export class DashboardComponent implements OnInit {
 
   editarPagina(uuid: string) {
     this.router.navigate(['/editor', uuid]);
+  }
+
+  logout() {
+    localStorage.removeItem('user_name');
+    localStorage.removeItem('user_email');
+    
+    this.router.navigate(['/']);
   }
 }

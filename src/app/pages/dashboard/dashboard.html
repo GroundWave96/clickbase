@@ -1,12 +1,24 @@
 @if (user) {
 <div class="min-h-screen bg-slate-900 text-white p-8">
 
-    <div class="flex items-center gap-4 mb-8 border-b border-slate-700 pb-6">
-        <img [src]="user.picture" class="rounded-full w-16 h-16 shadow-md" referrerpolicy="no-referrer" />
-        <div>
-            <h1 class="text-3xl font-bold text-white">Meus Projetos</h1>
-            <p class="text-gray-400">Gerenciador de páginas ClickBase</p>
+    <div class="flex items-center justify-between mb-8 border-b border-slate-700 pb-6">
+        <div class="flex items-center gap-4">
+            <img [src]="user.picture" class="rounded-full w-16 h-16 shadow-md" referrerpolicy="no-referrer" />
+            <div>
+                <h1 class="text-3xl font-bold text-white">Meus Projetos</h1>
+                <p class="text-gray-400">Gerenciador de páginas ClickBase</p>
+            </div>
         </div>
+
+        <button (click)="logout()" title="Sair da conta"
+            class="flex items-center gap-2 border border-slate-600 text-slate-300 hover:text-white hover:bg-slate-700 hover:border-slate-500 transition-colors px-4 py-2 rounded-lg text-sm font-semibold active:scale-95">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                    d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1">
+                </path>
+            </svg>
+            Sair
+        </button>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -17,7 +29,6 @@
             <div class="flex flex-col gap-4">
                 <div>
                     <label class="block text-sm text-gray-400 mb-1">Nome da Página</label>
-                    <!-- Dispara a função onTituloInput sempre que algo for digitado -->
                     <input #tituloInput type="text" placeholder="Ex: Portfólio Agência"
                         (input)="onTituloInput(tituloInput.value, slugInput)"
                         class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white outline-none focus:border-blue-500 transition-colors">
@@ -30,11 +41,9 @@
                         [class.border-green-500]="slugStatus === 'available'">
                         <span class="pl-3 pr-1 text-gray-500 select-none text-sm">clickbase.com/</span>
 
-                        <!-- Dispara a validação caso o usuário queira editar o slug manualmente -->
                         <input #slugInput type="text" placeholder="minha-agencia" (input)="validarSlug(slugInput.value)"
                             class="w-full bg-transparent p-3 text-white outline-none">
 
-                        <!-- Ícones de Status -->
                         <div class="pr-3 flex items-center">
                             @if (slugStatus === 'checking') {
                             <div
@@ -56,7 +65,6 @@
                         </div>
                     </div>
 
-                    <!-- Mensagens de texto -->
                     <div class="h-5 mt-1">
                         @if (slugStatus === 'available') {
                         <p class="text-xs text-green-400">Excelente! URL disponível.</p>
@@ -78,7 +86,6 @@
         <div class="bg-slate-800 p-6 rounded-xl shadow-lg border border-slate-700 lg:col-span-2">
             <div class="flex justify-between items-center mb-6">
                 <h2 class="text-xl font-semibold text-white">Páginas Ativas</h2>
-                <!-- Mostrador de limite -->
                 <span class="bg-slate-900 px-3 py-1 rounded-full text-sm text-gray-400 border border-slate-600">
                     {{ pages.length }} / 10 utilizadas
                 </span>
@@ -95,7 +102,10 @@
                 <div
                     class="bg-slate-900 p-5 rounded-xl border border-slate-700 flex flex-col group hover:border-blue-500 transition-colors shadow-sm relative overflow-hidden">
                     <h3 class="font-bold text-lg text-white mb-1 z-10">{{ page.title }}</h3>
-                    <p class="text-sm text-blue-400 mb-6 z-10">clickbase.com/{{ page.slug }}</p>
+                    <a [href]="'http://localhost:4200/' + page.slug" target="_blank" title="Abrir página pública"
+                        class="text-sm text-blue-400 mb-6 z-10 hover:text-blue-300 hover:underline transition-colors w-fit cursor-pointer">
+                        clickbase.com/{{ page.slug }}
+                    </a>
 
                     <div class="mt-auto flex justify-end z-10">
                         <button (click)="editarPagina(page.uuid)"

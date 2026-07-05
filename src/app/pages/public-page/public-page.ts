@@ -1,22 +1,21 @@
 import { Component, OnInit, ChangeDetectorRef, inject } from '@angular/core';
 import { ActivatedRoute, RouterModule } from '@angular/router';
-import { UpperCasePipe } from '@angular/common'; // <-- O import que faltava
+import { UpperCasePipe } from '@angular/common';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-public-page',
-  standalone: true, // Garante que é um componente independente
-  imports: [UpperCasePipe, RouterModule], // <-- Declaramos o que vamos usar no HTML
+  standalone: true,
+  imports: [UpperCasePipe, RouterModule],
   templateUrl: './public-page.html'
 })
 export class PublicPageComponent implements OnInit {
   slug: string | null = null;
 
-  // Dados recebidos da API
   page: any = null;
   folders: any[] = [];
   links: any[] = [];
 
-  // Controle de estado
   loading: boolean = true;
   notFound: boolean = false;
 
@@ -33,7 +32,7 @@ export class PublicPageComponent implements OnInit {
 
   async carregarDadosPublicos(slug: string) {
     try {
-      const res = await fetch(`http://localhost:8787/api/public/${slug}`);
+      const res = await fetch(`${environment.apiUrl}/api/public/${slug}`);
       const data = await res.json();
 
       if (data.success) {
@@ -60,12 +59,10 @@ export class PublicPageComponent implements OnInit {
     return this.links.filter(link => link.folder_uuid === folderUuid);
   }
 
-  // No seu public-page.ts, substitua os getters atuais por este:
   get estruturaUnificada() {
     const pastas = this.folders.map(f => ({ ...f, type: 'folder' }));
     const soltos = this.links.filter(l => !l.folder_uuid).map(l => ({ ...l, type: 'link' }));
 
-    // O segredo está aqui: ordenar pela coluna que salvamos no banco
     return [...pastas, ...soltos].sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
   }
 }

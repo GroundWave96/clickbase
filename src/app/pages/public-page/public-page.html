@@ -12,15 +12,12 @@
     </a>
 </div>
 } @else {
-<!-- O fundo usa a cor salva no banco, ou um fallback escuro -->
 <div class="min-h-screen text-white p-6 sm:p-12 flex justify-center"
     [style.backgroundColor]="page.theme_color || '#0f172a'">
 
     <div class="w-full max-w-lg mt-12 flex flex-col gap-8">
 
-        <!-- Cabeçalho (Foto e Título) -->
         <header class="flex flex-col items-center text-center gap-4">
-            <!-- Placeholder de Avatar com a primeira letra do título -->
             <div
                 class="w-24 h-24 bg-white/10 rounded-full flex items-center justify-center text-4xl font-bold shadow-lg backdrop-blur-sm border border-white/20">
                 {{ page.title.charAt(0) | uppercase }}
@@ -28,26 +25,25 @@
             <h1 class="text-2xl font-bold tracking-wide">{{ page.title }}</h1>
         </header>
 
-        <!-- Lista de Conteúdo Principal -->
         <main class="flex flex-col gap-6 w-full">
             @for (item of estruturaUnificada; track item.uuid) {
 
-            <!-- Se for Link -->
             @if (item.type === 'link') {
             <a [href]="item.url" target="_blank"
-                class="block w-full bg-white/10 hover:bg-white/20 p-4 rounded-full text-center font-semibold transition-all">
+                class="block w-full bg-white/10 hover:bg-white/20 border border-white/10 backdrop-blur-md p-4 rounded-2xl text-center font-semibold shadow-sm transition-all hover:scale-[1.02] active:scale-95">
                 {{ item.title }}
             </a>
             }
 
-            <!-- Se for Pasta -->
             @if (item.type === 'folder') {
-            <div class="bg-black/20 rounded-3xl p-6 border border-white/5 backdrop-blur-sm">
-                <h2 class="text-lg font-bold mb-4 text-center">{{ item.title }}</h2>
+            <div class="bg-black/20 rounded-3xl p-6 border border-white/10 backdrop-blur-md shadow-lg">
+                <h2 class="text-xs font-bold mb-4 text-center text-white/60 uppercase tracking-widest">{{ item.title }}
+                </h2>
+
                 <div class="flex flex-col gap-3">
                     @for (link of getLinksDaPasta(item.uuid); track link.uuid) {
                     <a [href]="link.url" target="_blank"
-                        class="block w-full bg-white text-slate-900 p-3 rounded-xl text-center font-bold">
+                        class="block w-full bg-white/10 hover:bg-white/20 border border-white/5 p-4 rounded-2xl text-center font-semibold transition-all hover:scale-[1.02] active:scale-95">
                         {{ link.title }}
                     </a>
                     }
@@ -57,7 +53,6 @@
             }
         </main>
 
-        <!-- Footer Branding -->
         <footer class="mt-12 text-center text-white/50 text-sm font-medium pb-8">
             <a routerLink="/" class="hover:text-white transition-colors">
                 Criado com <strong>ClickBase</strong>

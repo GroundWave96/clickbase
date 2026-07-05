@@ -1,0 +1,69 @@
+@if (loading) {
+<div class="min-h-screen bg-slate-900 flex items-center justify-center">
+    <div class="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+</div>
+} @else if (notFound) {
+<div class="min-h-screen bg-slate-900 text-white flex flex-col items-center justify-center p-8 text-center">
+    <h1 class="text-6xl font-bold mb-4">404</h1>
+    <p class="text-xl text-gray-400 mb-8">Esta página não existe ou foi removida.</p>
+    <a routerLink="/dashboard"
+        class="bg-blue-600 hover:bg-blue-500 px-6 py-3 rounded-full font-semibold transition-colors">
+        Criar meu ClickBase
+    </a>
+</div>
+} @else {
+<!-- O fundo usa a cor salva no banco, ou um fallback escuro -->
+<div class="min-h-screen text-white p-6 sm:p-12 flex justify-center"
+    [style.backgroundColor]="page.theme_color || '#0f172a'">
+
+    <div class="w-full max-w-lg mt-12 flex flex-col gap-8">
+
+        <!-- Cabeçalho (Foto e Título) -->
+        <header class="flex flex-col items-center text-center gap-4">
+            <!-- Placeholder de Avatar com a primeira letra do título -->
+            <div
+                class="w-24 h-24 bg-white/10 rounded-full flex items-center justify-center text-4xl font-bold shadow-lg backdrop-blur-sm border border-white/20">
+                {{ page.title.charAt(0) | uppercase }}
+            </div>
+            <h1 class="text-2xl font-bold tracking-wide">{{ page.title }}</h1>
+        </header>
+
+        <!-- Lista de Conteúdo Principal -->
+        <main class="flex flex-col gap-6 w-full">
+            @for (item of estruturaUnificada; track item.uuid) {
+
+            <!-- Se for Link -->
+            @if (item.type === 'link') {
+            <a [href]="item.url" target="_blank"
+                class="block w-full bg-white/10 hover:bg-white/20 p-4 rounded-full text-center font-semibold transition-all">
+                {{ item.title }}
+            </a>
+            }
+
+            <!-- Se for Pasta -->
+            @if (item.type === 'folder') {
+            <div class="bg-black/20 rounded-3xl p-6 border border-white/5 backdrop-blur-sm">
+                <h2 class="text-lg font-bold mb-4 text-center">{{ item.title }}</h2>
+                <div class="flex flex-col gap-3">
+                    @for (link of getLinksDaPasta(item.uuid); track link.uuid) {
+                    <a [href]="link.url" target="_blank"
+                        class="block w-full bg-white text-slate-900 p-3 rounded-xl text-center font-bold">
+                        {{ link.title }}
+                    </a>
+                    }
+                </div>
+            </div>
+            }
+            }
+        </main>
+
+        <!-- Footer Branding -->
+        <footer class="mt-12 text-center text-white/50 text-sm font-medium pb-8">
+            <a routerLink="/" class="hover:text-white transition-colors">
+                Criado com <strong>ClickBase</strong>
+            </a>
+        </footer>
+
+    </div>
+</div>
+}

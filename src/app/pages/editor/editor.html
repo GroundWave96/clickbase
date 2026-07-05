@@ -1,0 +1,162 @@
+@if (pageData) {
+<div class="min-h-screen bg-slate-900 text-white flex flex-col">
+
+    <!-- Barra Superior de Navegação -->
+    <header
+        class="bg-slate-800 border-b border-slate-700 px-8 py-4 flex items-center justify-between shadow-sm sticky top-0 z-50">
+        <div class="flex items-center gap-4">
+            <!-- Botão Voltar -->
+            <a (click)="voltar()"
+                class="text-gray-400 hover:text-white transition-colors flex items-center gap-2 cursor-pointer">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                </svg>
+                Voltar
+            </a>
+
+            <div class="h-6 w-px bg-slate-700 mx-2"></div>
+
+            <!-- Informações da Página atual -->
+            <div>
+                <h1 class="font-bold text-lg leading-tight">{{ pageData.title }}</h1>
+                <a [href]="'http://localhost:4200/' + pageData.slug" target="_blank"
+                    class="text-xs text-blue-400 hover:underline">
+                    clickbase.com/{{ pageData.slug }}
+                </a>
+            </div>
+        </div>
+
+        <!-- Botão Perigoso de Excluir -->
+        <button (click)="excluirPagina()"
+            class="border border-red-500/50 text-red-400 hover:bg-red-500 hover:text-white transition-colors px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                </path>
+            </svg>
+            Excluir Página
+        </button>
+    </header>
+
+    <!-- Área Principal do Editor -->
+    <main class="flex-1 p-8 overflow-y-auto">
+        <div class="max-w-4xl mx-auto flex flex-col gap-8">
+
+            <!-- ÁREA DE CRIAÇÃO (PASTAS E LINKS) -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                <!-- Formulário: Criar Pasta -->
+                <div class="bg-slate-800 rounded-xl border border-slate-700 p-6 shadow-sm h-fit">
+                    <h2 class="text-lg font-semibold text-white mb-4">Criar Nova Pasta</h2>
+                    <div class="flex flex-col gap-3">
+                        <input #pastaInput type="text" placeholder="Ex: Minhas Redes..."
+                            class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white outline-none focus:border-blue-500">
+                        <button (click)="criarPasta(pastaInput.value); pastaInput.value=''"
+                            class="bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 px-6 rounded-lg transition-colors">
+                            Adicionar Pasta
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Formulário: Criar Link -->
+                <div class="bg-slate-800 rounded-xl border border-slate-700 p-6 shadow-sm">
+                    <h2 class="text-lg font-semibold text-white mb-4">Adicionar Novo Link</h2>
+                    <div class="flex flex-col gap-3">
+                        <input #linkTitulo type="text" placeholder="Título. Ex: Meu Portfólio"
+                            class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white outline-none focus:border-blue-500">
+
+                        <input #linkUrl type="text" placeholder="URL. Ex: https://meusite.com"
+                            class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white outline-none focus:border-blue-500">
+
+                        <!-- Dropdown inteligente: Deixa o usuário escolher onde o link vai ficar -->
+                        <select #linkLocal
+                            class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white outline-none focus:border-blue-500">
+                            <option value="">📌 Link Solto (Raiz da Página)</option>
+                            @for (folder of folders; track folder.uuid) {
+                            <option [value]="folder.uuid">📁 Pasta: {{ folder.title }}</option>
+                            }
+                        </select>
+
+                        <button
+                            (click)="criarLink(linkTitulo.value, linkUrl.value, linkLocal.value); linkTitulo.value=''; linkUrl.value=''"
+                            class="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-3 px-6 rounded-lg transition-colors mt-2">
+                            Salvar Link
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+
+            <hr class="border-slate-700">
+
+            <!-- ÁREA DE ESTRUTURA UNIFICADA -->
+            <div class="flex flex-col gap-4" cdkDropList (cdkDropListDropped)="dropEstrutura($event)">
+                <h2 class="text-xl font-semibold text-white mb-2">Estrutura da Página</h2>
+
+                @for (item of listaEstrutura; track item.uuid) {
+                <!-- cdkDrag aplicado no container principal torna toda a área clicável para arrastar -->
+                <div cdkDrag class="cursor-grab active:cursor-grabbing">
+
+                    <!-- Link Solto -->
+                    @if (item.type === 'link') {
+                    <div
+                        class="bg-slate-900 p-4 rounded-xl border border-slate-700 flex items-center gap-3 group border-l-4 border-l-emerald-500">
+                        <div class="text-gray-600">⠿</div>
+                        <div class="flex-1 flex justify-between items-center">
+                            <div>
+                                <span class="font-bold text-white block">{{ item.title }}</span>
+                                <span class="text-sm text-blue-400">{{ item.url }}</span>
+                            </div>
+                            <button (click)="deletarLink(item.uuid)"
+                                class="text-red-400 opacity-0 group-hover:opacity-100">Excluir</button>
+                        </div>
+                    </div>
+                    }
+
+                    <!-- Pasta -->
+                    @if (item.type === 'folder') {
+                    <div class="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden shadow-sm group">
+                        <div class="bg-slate-800 p-4 flex items-center gap-3 border-b border-slate-700">
+                            <div class="text-gray-500">⠿</div>
+                            <span class="font-bold text-white text-lg flex-1">{{ item.title }}</span>
+                            <button (click)="deletarPasta(item.uuid, item.title)"
+                                class="text-red-400 text-sm">Excluir</button>
+                        </div>
+                        <div class="p-4 bg-slate-900/50 flex flex-col gap-2 min-h-20" cdkDropList
+                            [cdkDropListData]="getLinksDaPasta(item.uuid)"
+                            (cdkDropListDropped)="dropLinkInterno($event, item.uuid)">
+
+                            @for (link of getLinksDaPasta(item.uuid); track link.uuid) {
+                            <div cdkDrag
+                                class="bg-slate-800 p-3 rounded-lg border border-slate-700 flex justify-between items-center group">
+                                <div class="flex flex-col">
+                                    <span class="font-semibold text-white text-sm">{{ link.title }}</span>
+                                    <span class="text-xs text-blue-400 truncate w-48">{{ link.url }}</span>
+                                </div>
+                                <button (click)="deletarLink(link.uuid)"
+                                    class="text-xs text-red-400 hover:bg-red-500 hover:text-white px-2 py-1 rounded transition-colors opacity-0 group-hover:opacity-100">
+                                    Deletar
+                                </button>
+                            </div>
+                            }
+                        </div>
+                    </div>
+                    }
+                </div>
+                }
+            </div>
+
+        </div>
+    </main>
+
+</div>
+} @else {
+<!-- Loading State -->
+<div class="min-h-screen bg-slate-900 text-white p-8 flex items-center justify-center">
+    <div class="flex flex-col items-center gap-4">
+        <div class="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        <p class="text-lg text-gray-400 animate-pulse">Carregando editor...</p>
+    </div>
+</div>
+}

@@ -98,7 +98,7 @@
                     <p class="text-sm text-blue-400 mb-6 z-10">clickbase.com/{{ page.slug }}</p>
 
                     <div class="mt-auto flex justify-end z-10">
-                        <button
+                        <button (click)="editarPagina(page.uuid)"
                             class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg transition-colors text-sm font-semibold w-full">
                             Editar Layout e Links
                         </button>
